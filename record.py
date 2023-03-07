@@ -77,7 +77,7 @@ if __name__ == "__main__":
     status = camera1.start()
     print("camera1.start()", status)
 
-    cv2.namedWindow("Infra Window")
+    cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
     cv2.setTrackbarPos("threshold", "Infra Window", 65000)
     frame = tof.Frame()

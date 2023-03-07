@@ -81,7 +81,7 @@ if __name__ == "__main__":
     test_path = paths[0]
     infra_buffer, _ = load_binary_file(test_path)
     test_buffer = infra_buffer[0]
-    cv2.namedWindow("Infra Window")
+    cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
     cv2.setTrackbarPos("threshold", "Infra Window", NORM_VALUE)
 
