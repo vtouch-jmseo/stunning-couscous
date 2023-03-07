@@ -1,6 +1,7 @@
 import os
 import cv2
 import struct
+import time
 
 import numpy as np
 from multiprocessing import Pool, Process
@@ -11,21 +12,37 @@ from read_yaml import read_yaml
 NORM_VALUE = 3000
 
 
-def load_binary_file(file):
-    infra_buffer = list()
-    depth_buffer = list()
-    with open(file, 'rb') as f:
-        shape = [struct.unpack('I', f.read(struct.calcsize('I')))[0] for _ in range(3)]
-        print(shape)
-        for _ in range(shape[-1]):
-            infra = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-            depth = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-            infra = np.array(infra).reshape(shape[1], shape[0])
-            depth = np.array(depth).reshape(shape[1], shape[0])
-            infra_buffer.append(infra)
-            depth_buffer.append(depth)
+# def load_binary_file(file):
+#     infra_buffer = list()
+#     depth_buffer = list()
+#     with open(file, 'rb') as f:
+#         shape = [struct.unpack('I', f.read(struct.calcsize('I')))[0] for _ in range(3)]
+#         print(shape)
+#         for _ in range(shape[-1]):
+#             infra = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
+#             depth = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
+#             infra = np.array(infra).reshape(shape[1], shape[0])
+#             depth = np.array(depth).reshape(shape[1], shape[0])
+#             infra_buffer.append(infra)
+#             depth_buffer.append(depth)
 
-    return infra_buffer, depth_buffer
+#     return infra_buffer, depth_buffer
+
+
+def read_header(file):
+    f = open(file, 'rb')
+    shape = [struct.unpack('I', f.read(struct.calcsize('I')))[0] for _ in range(3)]
+
+    return f, shape
+
+
+def read_binary(f, shape):
+    infra = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
+    depth = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
+    infra = np.array(infra).reshape(shape[1], shape[0])
+    depth = np.array(depth).reshape(shape[1], shape[0])
+    
+    return infra, depth
 
 
 def normalize(mat, threshold):
@@ -48,21 +65,25 @@ def get_file_paths(root):
 
 
 def run(file_path):
-    infra_buffer, depth_buffer = load_binary_file(file_path)
+    f, shape = read_header(file_path)
+    print(shape)
     file_path = file_path.split("/")[-1]
     f_name = os.path.splitext(file_path)[0]
     f_path = os.path.join(SAVE_ROOT, f_name)
-    os.mkdir(f_path)
+
+    if not os.path.isdir(f_path):
+        os.mkdir(f_path) 
 
     i = 0
-    for infra, depth in zip(infra_buffer, depth_buffer):
-        # depth_img = normalize(depth)
+    for _ in range(shape[-1]):
+        infra, _ = read_binary(f, shape)
         infra_img = normalize(infra, NORM_VALUE)
         infra_img = np.roll(infra_img, -5)  # TODO: remove
-        # cv2.imwrite("%06d_depth.jpg" % i, depth_img)
         cv2.imwrite(os.path.join(f_path, "%06d_infra.jpg" % i), infra_img)
         i += 1
 
+    f.close()
+    
 
 def on_change(pos):
     pass
@@ -75,12 +96,15 @@ if __name__ == "__main__":
 
     if not os.path.isdir(conf['jpeg_save_root']):
         os.mkdir(conf['jpeg_save_root'])
-        global SAVE_ROOT
-        SAVE_ROOT = conf['jpeg_save_root']
+    global SAVE_ROOT
+    SAVE_ROOT = conf['jpeg_save_root']
 
     test_path = paths[0]
-    infra_buffer, _ = load_binary_file(test_path)
-    test_buffer = infra_buffer[0]
+    f, shape = read_header(test_path)
+    infra_buffer, depth_buffer = read_binary(f, shape)
+    f.close()
+    # infra_buffer, _ = load_binary_file(test_path)
+    # test_buffer = infra_buffer[0]
     cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
     cv2.setTrackbarPos("threshold", "Infra Window", NORM_VALUE)
@@ -97,9 +121,11 @@ if __name__ == "__main__":
             break
 
         NORM_VALUE = cv2.getTrackbarPos("threshold", "Infra Window")
-        copied_buffer = test_buffer.copy()
+        copied_buffer = infra_buffer.copy()
         test_image = normalize(copied_buffer, NORM_VALUE)
         cv2.imshow("Infra Window", test_image)
+
+    cv2.destroyAllWindows()
 
     if save_flag:
         n_process = 4 if len(paths) > 4 else len(paths)
