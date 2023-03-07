@@ -8,16 +8,11 @@ import numpy as np
 import aditofpython as tof
 from datetime import datetime
 
-IP = "10.42.0.1"
-CONFIG = "./config/config_walden_3500_nxp.json"
+from read_yaml import read_yaml
+
 
 # from video_writer import VideoWriter
-SAVE_PREFIX = "./record"
-RECORD_TIME_SEC = 3
 RECORD_STATE = False
-FRAME_TYPE = 'lrmp'
-shape = (1024, 1024) if FRAME_TYPE == 'lrmp' else (512, 512)
-fps = 5 if FRAME_TYPE == 'lrmp' else 10
 
 
 def normalize(mat, threshold):
@@ -42,19 +37,23 @@ def on_change(pos):
 
 if __name__ == "__main__":
 
-    if not os.path.isdir(SAVE_PREFIX):
-        os.mkdir(SAVE_PREFIX)
+    conf = read_yaml("./record_conf.yaml")
+    shape = (1024, 1024) if conf['frame_type'] == 'lrmp' else (512, 512)
+    fps = 5 if conf['frame_type'] == 'lrmp' else 10
+
+    if not os.path.isdir(conf['save_prefix']):
+        os.mkdir(conf['save_prefix'])
 
     system = tof.System()
 
     cameras = []
-    status = system.getCameraListAtIp(cameras, IP)
+    status = system.getCameraListAtIp(cameras, conf['ip'])
 
     print("system.getCameraList()", status)
     print(cameras)
     camera1 = cameras[0]
 
-    status = camera1.setControl("initialization_config", CONFIG)
+    status = camera1.setControl("initialization_config", conf['config'])
     print("camera1.setControl()", status)
 
     status = camera1.initialize()
@@ -70,7 +69,7 @@ if __name__ == "__main__":
     print("system.getAvailableFrameTypes()", status)
     print(types)
 
-    status = camera1.setFrameType('lrmp')
+    status = camera1.setFrameType(conf['frame_type'])
     print("camera1.setFrameType()", status)
 
     # TODO: set noise threshold
@@ -94,9 +93,9 @@ if __name__ == "__main__":
             RECORD_STATE = True
 
             file_name = generate_filename()
-            file_path = os.path.join(SAVE_PREFIX, file_name)
+            file_path = os.path.join(conf['save_prefix'], file_name)
             f = open(file_path, "wb")
-            header = struct.pack('III', shape[0], shape[1], fps * RECORD_TIME_SEC)
+            header = struct.pack('III', shape[0], shape[1], fps * conf['record_time_sec'])
             f.write(header)
 
         # Capture frame-by-frame
@@ -117,7 +116,7 @@ if __name__ == "__main__":
         cv2.imshow("Infra Window", infra)
 
         if RECORD_STATE:
-            if num_cur_record_frame < fps * RECORD_TIME_SEC:
+            if num_cur_record_frame < fps * conf['record_time_sec']:
                 flatten_infra = ir_map.flatten()
                 flatten_depth = depth_map.flatten()
                 fmt = "H" * len(flatten_depth)
@@ -136,6 +135,3 @@ if __name__ == "__main__":
     cv2.destroyAllWindows()
     status = camera1.stop()
     print("camera1.close()", status)
-
-    # file_name = generate_filename()
-    # file_path = os.path.join(SAVE_PREFIX, file_name)

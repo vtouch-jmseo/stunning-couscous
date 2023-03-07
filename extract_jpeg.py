@@ -3,10 +3,13 @@ import cv2
 import struct
 
 import numpy as np
-from multiprocessing import Pool
+from multiprocessing import Pool, Process
 
-SAVE_ROOT = "./data_output"
+from read_yaml import read_yaml
+
+# SAVE_ROOT = "./data_output"
 NORM_VALUE = 3000
+
 
 def load_binary_file(file):
     infra_buffer = list()
@@ -46,6 +49,7 @@ def get_file_paths(root):
 
 def run(file_path):
     infra_buffer, depth_buffer = load_binary_file(file_path)
+    file_path = file_path.split("/")[-1]
     f_name = os.path.splitext(file_path)[0]
     f_path = os.path.join(SAVE_ROOT, f_name)
     os.mkdir(f_path)
@@ -65,11 +69,14 @@ def on_change(pos):
 
 
 if __name__ == "__main__":
-    root = "./"
-    paths = get_file_paths(root)
 
-    if not os.path.isdir(SAVE_ROOT):
-        os.mkdir(SAVE_ROOT)
+    conf = read_yaml("./unpack_conf.yaml")
+    paths = get_file_paths(conf['binary_root'])
+
+    if not os.path.isdir(conf['jpeg_save_root']):
+        os.mkdir(conf['jpeg_save_root'])
+        global SAVE_ROOT
+        SAVE_ROOT = conf['jpeg_save_root']
 
     test_path = paths[0]
     infra_buffer, _ = load_binary_file(test_path)
