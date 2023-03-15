@@ -8,25 +8,7 @@ from multiprocessing import Pool, Process
 
 from read_yaml import read_yaml
 
-# SAVE_ROOT = "./data_output"
 NORM_VALUE = 3000
-
-
-# def load_binary_file(file):
-#     infra_buffer = list()
-#     depth_buffer = list()
-#     with open(file, 'rb') as f:
-#         shape = [struct.unpack('I', f.read(struct.calcsize('I')))[0] for _ in range(3)]
-#         print(shape)
-#         for _ in range(shape[-1]):
-#             infra = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-#             depth = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-#             infra = np.array(infra).reshape(shape[1], shape[0])
-#             depth = np.array(depth).reshape(shape[1], shape[0])
-#             infra_buffer.append(infra)
-#             depth_buffer.append(depth)
-
-#     return infra_buffer, depth_buffer
 
 
 def read_header(file):
@@ -46,9 +28,8 @@ def read_binary(f, shape):
 
 
 def normalize(mat, threshold):
-    # mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
     mat[mat>threshold] = threshold
-    mat = mat / threshold * 255
+    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_NIMMAX)
     mat = np.asarray(mat, dtype=np.uint8)
 
     return mat
@@ -78,7 +59,6 @@ def run(file_path):
     for _ in range(shape[-1]):
         infra, _ = read_binary(f, shape)
         infra_img = normalize(infra, NORM_VALUE)
-        infra_img = np.roll(infra_img, -5)  # TODO: remove
         cv2.imwrite(os.path.join(f_path, "%06d_infra.jpg" % i), infra_img)
         i += 1
 

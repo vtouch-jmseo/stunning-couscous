@@ -1,10 +1,10 @@
 # from video_writer import VideoWriter
 save_prefix : "./record"
-record_time_sec : 3
-frame_type : 'lrmp' # set 'lrmp' or 'lrqmp'
+record_time_sec : 30
+frame_type : 'qmp' # set 'mp' or 'qmp'
 
 # Device default setting 
 # DO NOT change
 ip : "10.42.0.1"
-config : "./config/config_walden_3500_nxp.json"
+config : "./config/tof-viewer_config.json"
 

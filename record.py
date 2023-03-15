@@ -11,14 +11,12 @@ from datetime import datetime
 from read_yaml import read_yaml
 
 
-# from video_writer import VideoWriter
 RECORD_STATE = False
 
 
 def normalize(mat, threshold):
-    # mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
     mat[mat>threshold] = threshold
-    mat = mat / threshold * 255
+    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
     mat = np.asarray(mat, dtype=np.uint8)
 
     return mat
@@ -38,8 +36,8 @@ def on_change(pos):
 if __name__ == "__main__":
 
     conf = read_yaml("./record_conf.yaml")
-    shape = (1024, 1024) if conf['frame_type'] == 'lrmp' else (512, 512)
-    fps = 5 if conf['frame_type'] == 'lrmp' else 10
+    shape = (1024, 1024) if conf['frame_type'] == 'mp' else (512, 512)
+    fps = 5 if conf['frame_type'] == 'mp' else 10
 
     if not os.path.isdir(conf['save_prefix']):
         os.mkdir(conf['save_prefix'])
@@ -79,7 +77,7 @@ if __name__ == "__main__":
 
     cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
-    cv2.setTrackbarPos("threshold", "Infra Window", 65000)
+    cv2.setTrackbarPos("threshold", "Infra Window", 3000)
     frame = tof.Frame()
     record_start = timeit.default_timer()
 
@@ -108,7 +106,6 @@ if __name__ == "__main__":
         threshold = cv2.getTrackbarPos("threshold", "Infra Window")
 
         infra = normalize(ir_map, threshold)
-        infra = np.roll(infra, -5)  # TODO: remove
         infra = cv2.cvtColor(infra, cv2.COLOR_GRAY2BGR)
         if RECORD_STATE:
             infra = cv2.putText(infra, "recording", (200, 50),
