@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
     conf = read_yaml("./record_conf.yaml")
     shape = (1024, 1024) if conf['frame_type'] == 'mp' else (512, 512)
-    fps = 5 if conf['frame_type'] == 'mp' else 10
+    fps = 7 if conf['frame_type'] == 'mp' else 30
 
     if not os.path.isdir(conf['save_prefix']):
         os.mkdir(conf['save_prefix'])

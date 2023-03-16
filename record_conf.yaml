@@ -1,7 +1,7 @@
 # from video_writer import VideoWriter
 save_prefix : "./record"
 record_time_sec : 30
-frame_type : 'qmp' # set 'mp' or 'qmp'
+frame_type : 'mp' # set 'mp' or 'qmp'
 
 # Device default setting 
 # DO NOT change

@@ -29,7 +29,7 @@ def read_binary(f, shape):
 
 def normalize(mat, threshold):
     mat[mat>threshold] = threshold
-    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_NIMMAX)
+    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
     mat = np.asarray(mat, dtype=np.uint8)
 
     return mat
