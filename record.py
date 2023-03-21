@@ -15,13 +15,7 @@ def on_change(pos):
     pass
 
 
-if __name__ == "__main__":
-
-    conf = read_yaml("./record_conf.yaml")
-
-    if not os.path.isdir(conf['save_prefix']):
-        os.mkdir(conf['save_prefix'])
-
+def get_camera(conf):
     system = tof.System()
 
     cameras = []
@@ -54,6 +48,18 @@ if __name__ == "__main__":
 
     status = camera1.start()
     print("camera1.start()", status)
+
+    return camera1
+
+
+if __name__ == "__main__":
+
+    conf = read_yaml("./record_conf.yaml")
+
+    if not os.path.isdir(conf['save_prefix']):
+        os.mkdir(conf['save_prefix'])
+
+    camera1 = get_camera(conf)
 
     cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
