@@ -3,43 +3,67 @@ import cv2
 import struct
 
 import numpy as np
+from datetime import datetime
 
 
-def load_binary_file(file):
-    infra_buffer = list()
-    depth_buffer = list()
-    with open(file, 'rb') as f:
-        shape = [struct.unpack('I', f.read(struct.calcsize('I')))[0] for _ in range(3)]
-        print(shape)
-        for _ in range(shape[-1]):
-            infra = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-            depth = [struct.unpack('H', f.read(struct.calcsize('H')))[0] for _ in range(shape[0] * shape[1])]
-            infra = np.array(infra).reshape(shape[1], shape[0])
-            depth = np.array(depth).reshape(shape[1], shape[0])
-            infra_buffer.append(infra)
-            depth_buffer.append(depth)
+class ADIFileWriter:
+    def __init__(self, frame_type, record_time):
+        self.frame_type = frame_type
+        self.record_time = record_time
+        self.fps = 7 if frame_type == 'mp' else 30
+        self.shape = (1024, 1024) if frame_type == 'mp' else (512, 512)
+        self.num_frames = 0
+        self.f = None
 
-    return infra_buffer, depth_buffer
+    def generate_file(self, save_prefix):
+        now = datetime.now()
+        date = now.strftime("%Y%m%d_%H%M%S")
+        file_name = f"{date}.adi"
 
-def normalize(mat):
-    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
-    mat = np.asarray(mat, dtype=np.uint8)
+        file_path = os.path.join(save_prefix, file_name)
+        self.f = open(file_path, "wb")
 
-    return mat
+        header = struct.pack('III', self.shape[0], self.shape[1], self.fps * self.record_time)
+        self.f.write(header)
 
-if __name__=="__main__":
-    file_path = "./20230227_221826.adi"
+    def write(self, ir_map, depth_map):
+        if self.num_frames < self.fps * self.record_time:
+            flatten_infra = ir_map.flatten()
+            flatten_depth = depth_map.flatten()
+            fmt = "H" * len(flatten_depth)
 
-    infra_buffer, depth_buffer = load_binary_file(file_path)
+            pack_infra = struct.pack(fmt, *flatten_infra)
+            pack_depth = struct.pack(fmt, *flatten_depth)
 
-    i = 0
-    for infra, depth in zip(infra_buffer, depth_buffer):
-        depth_img = normalize(depth)
-        infra_img = normalize(infra)
-        infra_img = np.roll(infra_img, -5)  # TODO: removeS
-        cv2.imwrite("./%03d_depth.jpg" % i, depth_img)
-        cv2.imwrite("./%03d_infra.jpg" % i, infra_img)
-        i += 1
-        # cv2.imshow("depth", depth_img)
-        # cv2.imshow("infra", infra_img)
-        cv2.waitKey(1)
+            self.f.write(pack_infra)
+            self.f.write(pack_depth)
+            self.num_frames += 1
+            state = True
+        else:
+            self.f.close()
+            self.num_frames = 0
+            state = False
+
+        return state
+
+
+class ADIFileReader:
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.f = open(self.file_path, 'rb')
+        self.shape = [struct.unpack('I', self.f.read(struct.calcsize('I')))[0] for _ in range(3)]
+
+    def read(self):
+        infra = [struct.unpack('H', self.f.read(struct.calcsize('H')))[0] for _ in range(self.shape[0] * self.shape[1])]
+        depth = [struct.unpack('H', self.f.read(struct.calcsize('H')))[0] for _ in range(self.shape[0] * self.shape[1])]
+        infra = np.array(infra).reshape(self.shape[1], self.shape[0])
+        depth = np.array(depth).reshape(self.shape[1], self.shape[0])
+
+        return infra, depth
+
+    def close(self):
+        self.f.close()
+
+    def get_shape(self):
+        return self.shape
+

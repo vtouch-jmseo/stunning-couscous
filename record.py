@@ -1,47 +1,21 @@
 import os
-import sys
 import cv2
 import timeit
-import struct
 
 import numpy as np
 import aditofpython as tof
-from datetime import datetime
 
-from read_yaml import read_yaml
-
+from util import read_yaml, normalize
+from raw import ADIFileWriter
 
 RECORD_STATE = False
-
-
-def normalize(mat, threshold):
-    mat[mat>threshold] = threshold
-    mat = cv2.normalize(mat, None, 0, 255, cv2.NORM_MINMAX)
-    mat = np.asarray(mat, dtype=np.uint8)
-
-    return mat
-
-
-def generate_filename():
-    now = datetime.now()
-    date = now.strftime("%Y%m%d_%H%M%S")
-
-    return f"{date}.adi"
 
 
 def on_change(pos):
     pass
 
 
-if __name__ == "__main__":
-
-    conf = read_yaml("./record_conf.yaml")
-    shape = (1024, 1024) if conf['frame_type'] == 'mp' else (512, 512)
-    fps = 7 if conf['frame_type'] == 'mp' else 30
-
-    if not os.path.isdir(conf['save_prefix']):
-        os.mkdir(conf['save_prefix'])
-
+def get_camera(conf):
     system = tof.System()
 
     cameras = []
@@ -75,13 +49,25 @@ if __name__ == "__main__":
     status = camera1.start()
     print("camera1.start()", status)
 
+    return camera1
+
+
+if __name__ == "__main__":
+
+    conf = read_yaml("./record_conf.yaml")
+
+    if not os.path.isdir(conf['save_prefix']):
+        os.mkdir(conf['save_prefix'])
+
+    camera1 = get_camera(conf)
+
     cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
     cv2.createTrackbar("threshold", "Infra Window", 0, 65000, on_change)
     cv2.setTrackbarPos("threshold", "Infra Window", 3000)
     frame = tof.Frame()
-    record_start = timeit.default_timer()
 
-    num_cur_record_frame = 0
+    w = ADIFileWriter(conf['frame_type'], conf['record_time_sec'])
+
     while True:
         key = cv2.waitKey(1)
 
@@ -89,12 +75,7 @@ if __name__ == "__main__":
             break
         elif key == ord('r'):
             RECORD_STATE = True
-
-            file_name = generate_filename()
-            file_path = os.path.join(conf['save_prefix'], file_name)
-            f = open(file_path, "wb")
-            header = struct.pack('III', shape[0], shape[1], fps * conf['record_time_sec'])
-            f.write(header)
+            w.generate_file(conf['save_prefix'])
 
         # Capture frame-by-frame
         status = camera1.requestFrame(frame)
@@ -110,24 +91,8 @@ if __name__ == "__main__":
         if RECORD_STATE:
             infra = cv2.putText(infra, "recording", (200, 50),
                                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            RECORD_STATE = w.write(ir_map, depth_map)
         cv2.imshow("Infra Window", infra)
-
-        if RECORD_STATE:
-            if num_cur_record_frame < fps * conf['record_time_sec']:
-                flatten_infra = ir_map.flatten()
-                flatten_depth = depth_map.flatten()
-                fmt = "H" * len(flatten_depth)
-
-                pack_infra = struct.pack(fmt, *flatten_infra)
-                pack_depth = struct.pack(fmt, *flatten_depth)
-
-                f.write(pack_infra)
-                f.write(pack_depth)
-                num_cur_record_frame += 1
-            else:
-                f.close()
-                num_cur_record_frame = 0
-                RECORD_STATE = False
 
     cv2.destroyAllWindows()
     status = camera1.stop()
