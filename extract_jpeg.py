@@ -32,7 +32,7 @@ def run(file_path):
 
     i = 0
     for _ in range(shape[-1]):
-        infra, _ = reader.read()
+        infra, _ = reader.get_frame()
         infra_img = normalize(infra, NORM_VALUE)
         cv2.imwrite(os.path.join(f_path, "%06d_infra.jpg" % i), infra_img)
         i += 1
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # f, shape = read_header(test_path)
     # infra_buffer, depth_buffer = read_binary(f, shape)
     reader = ADIFileReader(test_path)
-    infra_buffer, depth_buffer = reader.read()
+    infra_buffer, depth_buffer = reader.get_frame()
     reader.close()
 
     cv2.namedWindow("Infra Window", cv2.WINDOW_NORMAL)
